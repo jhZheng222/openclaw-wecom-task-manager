@@ -1681,11 +1681,24 @@ def main():
     elif command == "report":
         print_status_report()
     
-    elif command == "create" and len(sys.argv) >= 4:
+    elif command == "create" and len(sys.argv) >= 5:
         task_id = sys.argv[2]
         task_name = sys.argv[3]
-        description = sys.argv[4] if len(sys.argv) > 4 else f"任务：{task_name}"
-        result = create_task(task_id, task_name, "文档", description=description)
+        task_type = sys.argv[4]  # 任务类型：开发/运维/投资/学习/文档/市场/客服
+        priority = sys.argv[5] if len(sys.argv) > 5 else "P1"
+        deadline = sys.argv[6] if len(sys.argv) > 6 else ""
+        description = sys.argv[7] if len(sys.argv) > 7 else f"任务：{task_name}"
+        estimated_hours = int(sys.argv[8]) if len(sys.argv) > 8 and sys.argv[8].isdigit() else 0
+        
+        result = create_task(
+            task_id=task_id,
+            task_name=task_name,
+            task_type=task_type,
+            priority=priority,
+            deadline=deadline,
+            description=description,
+            estimated_hours=estimated_hours
+        )
         if not result.get("success"):
             sys.exit(1)
     
