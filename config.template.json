@@ -13,46 +13,24 @@
   
   "accessControl": {
     "_comment": "访问控制配置 - 白名单模式",
+    "_example": "配置允许访问此技能的 agents 列表",
     "enabled": true,
     "mode": "whitelist",
     
     "allowedAgents": [
-      {
-        "agentId": "da-yan",
-        "role": "主 agent",
-        "permissions": ["all"],
-        "description": "系统管理者，完全访问权限"
-      },
-      {
-        "agentId": "techlead",
-        "role": "技术团队老大",
-        "permissions": ["all"],
-        "description": "负责任务执行和技术团队协调"
-      },
-      {
-        "agentId": "opsdirector",
-        "role": "运维团队老大",
-        "permissions": ["all"],
-        "description": "负责任务执行和运维团队协调"
-      },
-      {
-        "agentId": "investment_coordinator",
-        "role": "投资团队老大",
-        "permissions": ["all"],
-        "description": "负责任务执行和投资团队协调"
-      },
-      {
-        "agentId": "general_coordinator",
-        "role": "通用团队老大",
-        "permissions": ["all"],
-        "description": "负责任务执行和通用团队协调"
-      }
+      // 示例：配置你的 agents
+      // {
+      //   "agentId": "your-agent-id",
+      //   "role": "角色名称",
+      //   "permissions": ["all"],
+      //   "description": "角色描述"
+      // }
     ],
     
     "onDenied": {
       "action": "reject",
       "logLevel": "warning",
-      "message": "❌ 您没有权限调用 wecom-task-manager 技能。请联系 da-yan 或您的团队负责人。"
+      "message": "❌ 您没有权限调用 wecom-task-manager 技能。请联系系统管理员。"
     }
   },
   

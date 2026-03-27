@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 # 切换到 workspace 目录（确保 mcporter 能找到 MCP 配置）
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
+# 支持环境变量 OPENCLAW_WORKSPACE，默认 ~/.openclaw/workspace
+WORKSPACE = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
 os.chdir(WORKSPACE)
 
 # ==================== 配置加载 ====================
@@ -77,15 +78,20 @@ def ensure_table_initialized() -> bool:
 
 # ==================== 企业微信配置 ====================
 
-DOCID = CONFIG.get("enterpriseWeChat", {}).get(
-    "docId",
-    "dcTCczAuKRidTOQ9ZlUOpXgW9JSuq7slNrR6Z6O-N80yqOaGNTJpcTyqYXgOF7aXURG1adBiAxIYCi5KQg7KAXvA"
-)
-SHEET_ID = CONFIG.get("enterpriseWeChat", {}).get(
-    "sheetId",
-    "q979lj"
-)
-MCPORTER_PATH = "/usr/local/Cellar/node/25.6.0/bin/mcporter"
+# 从配置文件读取，不提供默认值（强制用户配置）
+DOCID = CONFIG.get("enterpriseWeChat", {}).get("docId")
+SHEET_ID = CONFIG.get("enterpriseWeChat", {}).get("sheetId")
+
+# 动态查找 mcporter 路径
+import shutil
+MCPORTER_PATH = os.getenv("MCPORTER_PATH", shutil.which("mcporter") or "mcporter")
+
+# 配置验证
+if not DOCID or not SHEET_ID:
+    raise ValueError(
+        "请在 config.json 中配置 enterpriseWeChat.docId 和 enterpriseWeChat.sheetId\n"
+        "参考：config.template.json"
+    )
 
 # ==================== 访问控制配置 ====================
 
@@ -95,14 +101,10 @@ ALLOWED_AGENTS = [
     for agent in CONFIG.get("accessControl", {}).get("allowedAgents", [])
 ]
 if not ALLOWED_AGENTS:
-    # 默认配置
-    ALLOWED_AGENTS = [
-        "da-yan",
-        "techlead",
-        "opsdirector",
-        "investment_coordinator",
-        "general_coordinator"
-    ]
+    # 不提供默认值，使用空列表
+    # 用户需要在 config.json 中配置 allowedAgents
+    print("⚠️ 未配置 accessControl.allowedAgents，将使用空列表（无 agents 可访问）")
+    print("   请参考 config.template.json 配置示例")
 
 # 访问控制开关
 ACCESS_CONTROL_ENABLED = CONFIG.get("accessControl", {}).get("enabled", True)
@@ -160,8 +162,9 @@ def require_access(agent_id: str = "") -> bool:
     """
     return check_access(agent_id)
 
-# Agent 分派规则
-AGENT_MAPPING = {
+# Agent 分派规则（从配置文件读取，提供通用默认值）
+# 用户可以在 config.json 中自定义映射关系
+DEFAULT_AGENT_MAPPING = {
     "开发": "techlead",
     "后端": "backend",
     "前端": "frontend",
@@ -176,6 +179,9 @@ AGENT_MAPPING = {
     "学习": "copywriter",
     "文档": "general_coordinator",
 }
+
+# 从配置加载，使用默认值作为后备
+AGENT_MAPPING = CONFIG.get("taskTypeToAgent", DEFAULT_AGENT_MAPPING)
 
 # 任务类型关键词
 TASK_TYPE_KEYWORDS = {

@@ -200,16 +200,18 @@ create_task(
 
 根据任务类型确定负责的 agent。
 
-**映射关系**：
-| 任务类型 | Agent |
-|----------|-------|
-| 开发 | techlead |
-| 运维 | opsdirector |
-| 投资 | investment_coordinator |
-| 学习 | copywriter |
-| 文档 | general_coordinator |
-| 市场 | marketing |
-| 客服 | customersvc |
+**映射关系（示例）**：
+| 任务类型 | Agent（示例） | 说明 |
+|----------|-------|------|
+| 开发 | techlead | 或你的开发 agent |
+| 运维 | opsdirector | 或你的运维 agent |
+| 投资 | investment_coordinator | 或你的投资 agent |
+| 学习 | copywriter | 或你的学习 agent |
+| 文档 | general_coordinator | 或你的文档 agent |
+| 市场 | marketing | 或你的市场 agent |
+| 客服 | customersvc | 或你的客服 agent |
+
+**提示**：可以在 `config.json` 中自定义映射关系
 
 ---
 
@@ -232,13 +234,13 @@ create_task(
 )
 
 # 2. 开始任务
-start_task("TASK-019", owner="techlead")
+start_task("TASK-019", owner="your-agent-id")
 
 # 3. 更新进度
 update_progress("TASK-019", progress=50)
 
 # 4. 完成任务
-complete_task("TASK-019", output_url="https://...", acceptor="techlead")
+complete_task("TASK-019", output_url="https://...", acceptor="your-agent-id")
 ```
 
 ### 示例 2：心跳检查

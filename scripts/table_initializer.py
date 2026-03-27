@@ -8,28 +8,41 @@
 import json
 import subprocess
 import time
+import os
+import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 
 # ==================== 配置 ====================
 
 # 切换到 workspace 目录（确保 mcporter 能找到 MCP 配置）
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-import os
+# 支持环境变量 OPENCLAW_WORKSPACE
+WORKSPACE = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
 os.chdir(WORKSPACE)
 
-MCPORTER_PATH = "/usr/local/Cellar/node/25.6.0/bin/mcporter"
+# 动态查找 mcporter 路径
+import shutil
+MCPORTER_PATH = os.getenv("MCPORTER_PATH", shutil.which("mcporter") or "mcporter")
 
-# 从配置文件加载
+# 从配置文件加载（强制要求配置）
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 if CONFIG_PATH.exists():
     with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
         config = json.load(f)
     DOCID = config.get("enterpriseWeChat", {}).get("docId")
     SHEET_ID = config.get("enterpriseWeChat", {}).get("sheetId")
+    
+    # 配置验证
+    if not DOCID or not SHEET_ID:
+        raise ValueError(
+            "请在 config.json 中配置 enterpriseWeChat.docId 和 enterpriseWeChat.sheetId\n"
+            "参考：config.template.json"
+        )
 else:
-    DOCID = "dcTCczAuKRidTOQ9ZlUOpXgW9JSuq7slNrR6Z6O-N80yqOaGNTJpcTyqYXgOF7aXURG1adBiAxIYCi5KQg7KAXvA"
-    SHEET_ID = "q979lj"
+    raise FileNotFoundError(
+        f"配置文件不存在：{CONFIG_PATH}\n"
+        "请先复制 config.template.json 为 config.json 并配置"
+    )
 
 # ==================== 字段定义 ====================
 

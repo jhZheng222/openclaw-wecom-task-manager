@@ -10,14 +10,15 @@
 
 ### 步骤 1：确认权限
 
-**允许的 agents**（5 个）：
-- da-yan
-- techlead
-- opsdirector
-- investment_coordinator
-- general_coordinator
+**允许的 agents**（示例）：
+- your-agent-id-1
+- your-agent-id-2
+- your-agent-id-3
 
-如果你是这些 agents 的用户，可以继续。否则需要联系 da-yan。
+**说明**：
+- 只有配置在 `allowedAgents` 列表中的 agents 才能使用
+- 参考 `config.template.json` 配置示例
+- 常见配置：`["da-yan", "techlead", "opsdirector"]`
 
 ---
 
