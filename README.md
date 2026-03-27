@@ -1,6 +1,6 @@
 # WeCom Task Manager - 企业微信任务管理技能
 
-[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
@@ -13,7 +13,8 @@
 ## 🎯 功能特性
 
 ### 核心功能
-- ✅ **表格自动初始化** - 首次使用自动创建完整表格结构（v1.4.0 新增）
+- ✅ **多系统支持** - 可在任意 OpenClaw 系统中使用（v1.5.0 新增）
+- ✅ **表格自动初始化** - 首次使用自动创建完整表格结构
 - ✅ **任务全生命周期管理** - 创建、开始、更新、完成
 - ✅ **目标分解** - 将大目标分解为可执行任务
 - ✅ **依赖管理** - 支持任务依赖关系
@@ -24,12 +25,14 @@
 - ✅ **统计分析** - 多维度任务统计
 
 ### 技术特性
+- 🌐 **多系统支持** - 配置驱动，任意 OpenClaw 系统可用（v1.5.0 新增）
+- 🔧 **环境变量支持** - OPENCLAW_WORKSPACE、MCPORTER_PATH（v1.5.0 新增）
 - 📊 **企业微信集成** - 使用企业微信智能表格存储
-- 🔒 **访问控制** - 白名单机制，支持 5 个授权 agents
+- 🔒 **访问控制** - 白名单机制，支持自定义 agents
 - ⚡ **并发限制** - 可配置的最大并发任务数
 - 🔄 **重试机制** - API 调用失败自动重试
 - 📝 **配置驱动** - 独立配置文件，无需修改代码
-- 🧪 **完整测试** - 27 个测试用例，100% 覆盖
+- 🧪 **完整测试** - 100% 测试覆盖
 - 🚀 **开箱即用** - 自动初始化表格，无需手动配置字段
 
 ---
@@ -73,8 +76,8 @@ clawhub install wecom-task-manager
 ```json
 {
   "enterpriseWeChat": {
-    "docId": "YOUR_DOC_ID_HERE",
-    "sheetId": "YOUR_SHEET_ID_HERE"
+    "docId": "YOUR_DOC_ID",
+    "sheetId": "YOUR_SHEET_ID"
   }
 }
 ```
@@ -82,6 +85,16 @@ clawhub install wecom-task-manager
 **如何获取**：
 - 打开企业微信智能表格
 - 从 URL 中提取 `docId` 和 `sheetId`
+- 示例：`https://doc.weixin.qq.com/smartsheet/s3_XXX?tab=YYY` → docId=XXX, sheetId=YYY
+
+**环境变量支持**（可选）：
+```bash
+# 自定义工作区路径
+export OPENCLAW_WORKSPACE=/path/to/your/workspace
+
+# 自定义 mcporter 路径
+export MCPORTER_PATH=/path/to/mcporter
+```
 - 示例：`https://doc.weixin.qq.com/smartsheet/s3_XXX?tab=YYY` → docId=XXX, sheetId=YYY
 
 ### 步骤 3：配置访问控制
@@ -405,23 +418,24 @@ python3 test_*.py
 
 ## 🎯 路线图
 
-### v1.4.0（当前版本）✅
+### v1.5.0（当前版本）✅
+- ✅ 多系统支持 - 可在任意 OpenClaw 系统使用
+- ✅ 配置驱动 - 无需修改代码
+- ✅ 环境变量支持 - OPENCLAW_WORKSPACE、MCPORTER_PATH
+- ✅ 动态路径查找 - 自动查找 mcporter
+- ✅ 预计工时字段修复
+
+### v1.4.0
 - ✅ 表格自动初始化功能
 - ✅ 字段自动检查和补齐
 - ✅ CLI 初始化工具
 - ✅ 开箱即用体验
 
-### v1.3.0（已完成）✅
+### v1.3.0
 - ✅ 关联目标字段支持
 - ✅ 验收信息字段合并
 - ✅ 进度 5 档制
 - ✅ 实际工时自动计算
-
-### v1.2.0
-- ✅ 访问控制白名单机制
-- ✅ 并发控制
-- ✅ 独立配置文件
-- ✅ 完整测试覆盖
 
 ### v2.0.0（未来）
 - [ ] 工作流引擎
