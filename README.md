@@ -1,6 +1,6 @@
 # WeCom Task Manager - 企业微信任务管理技能
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](https://github.com/openclaw/wecom-task-manager)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
@@ -376,8 +376,8 @@ python3 test_*.py
 
 ## 📞 联系方式
 
-- **项目地址**: https://github.com/openclaw/wecom-task-manager
-- **问题反馈**: https://github.com/openclaw/wecom-task-manager/issues
+- **项目地址**: https://github.com/jhZheng222/openclaw-wecom-task-manager
+- **问题反馈**: https://github.com/jhZheng222/openclaw-wecom-task-manager/issues
 - **Discord**: https://discord.com/invite/clawd
 
 ---
