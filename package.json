@@ -1,16 +1,16 @@
 {
   "name": "wecom-task-manager",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "企业微信智能表格驱动的任务管理技能，支持目标分解、任务追踪、并发控制和访问控制",
   "author": "大衍 <da-yan@openclaw.ai>",
   "license": "MIT",
   "homepage": "https://github.com/jhZheng222/openclaw-wecom-task-manager",
   "repository": {
     "type": "git",
-    "url": "https://github.com/openclaw/wecom-task-manager.git"
+    "url": "https://github.com/jhZheng222/openclaw-wecom-task-manager.git"
   },
   "bugs": {
-    "url": "https://github.com/openclaw/wecom-task-manager/issues"
+    "url": "https://github.com/jhZheng222/openclaw-wecom-task-manager/issues"
   },
   "keywords": [
     "openclaw",
