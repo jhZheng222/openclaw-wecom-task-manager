@@ -1,16 +1,19 @@
 # WeCom Task Manager - 企业微信任务管理技能
 
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
-**企业微信智能表格驱动的任务管理技能，支持目标分解、任务追踪、并发控制和访问控制。**
+**企业微信智能表格驱动的任务管理技能，支持自动初始化表格、目标分解、任务追踪、并发控制和访问控制。**
+
+> 🎉 **v1.4.0 新增**：表格自动初始化功能，开箱即用，无需手动配置字段！
 
 ---
 
 ## 🎯 功能特性
 
 ### 核心功能
+- ✅ **表格自动初始化** - 首次使用自动创建完整表格结构（v1.4.0 新增）
 - ✅ **任务全生命周期管理** - 创建、开始、更新、完成
 - ✅ **目标分解** - 将大目标分解为可执行任务
 - ✅ **依赖管理** - 支持任务依赖关系
@@ -27,6 +30,7 @@
 - 🔄 **重试机制** - API 调用失败自动重试
 - 📝 **配置驱动** - 独立配置文件，无需修改代码
 - 🧪 **完整测试** - 27 个测试用例，100% 覆盖
+- 🚀 **开箱即用** - 自动初始化表格，无需手动配置字段
 
 ---
 
@@ -56,11 +60,11 @@ cp -r . ~/.openclaw/skills/wecom-task-manager/
 
 ## 🔧 快速开始
 
-### 步骤 1：复制配置文件
+### 步骤 1：安装技能
 
 ```bash
-cd ~/.openclaw/skills/wecom-task-manager
-cp config.template.json config.json
+# 从 ClawHub 安装
+clawhub install wecom-task-manager
 ```
 
 ### 步骤 2：配置企业微信表格
@@ -78,6 +82,7 @@ cp config.template.json config.json
 **如何获取**：
 - 打开企业微信智能表格
 - 从 URL 中提取 `docId` 和 `sheetId`
+- 示例：`https://doc.weixin.qq.com/smartsheet/s3_XXX?tab=YYY` → docId=XXX, sheetId=YYY
 
 ### 步骤 3：配置访问控制
 
@@ -97,7 +102,21 @@ cp config.template.json config.json
 }
 ```
 
-### 步骤 4：测试技能
+### 步骤 4：初始化表格（可选）
+
+**v1.4.0+** 会自动初始化，你也可以手动执行：
+
+```bash
+cd ~/.openclaw/skills/wecom-task-manager/scripts
+
+# 检查表格状态
+python3 table_initializer.py check
+
+# 初始化表格（添加缺失字段）
+python3 table_initializer.py init
+```
+
+### 步骤 5：测试技能
 
 ```bash
 cd ~/.openclaw/skills/wecom-task-manager/scripts
@@ -112,6 +131,8 @@ AGENT_ID="da-yan" python3 task_manager.py list
 ---
 
 ## 📚 使用方式
+
+**详细使用指南**: [USAGE.md](USAGE.md)
 
 ### CLI 命令
 
@@ -384,23 +405,30 @@ python3 test_*.py
 
 ## 🎯 路线图
 
-### v1.2.0（当前版本）
+### v1.4.0（当前版本）✅
+- ✅ 表格自动初始化功能
+- ✅ 字段自动检查和补齐
+- ✅ CLI 初始化工具
+- ✅ 开箱即用体验
+
+### v1.3.0（已完成）✅
+- ✅ 关联目标字段支持
+- ✅ 验收信息字段合并
+- ✅ 进度 5 档制
+- ✅ 实际工时自动计算
+
+### v1.2.0
 - ✅ 访问控制白名单机制
 - ✅ 并发控制
 - ✅ 独立配置文件
 - ✅ 完整测试覆盖
-
-### v1.3.0（计划中）
-- [ ] 批量操作功能
-- [ ] 任务复制功能
-- [ ] 通知功能增强
-- [ ] Webhook 支持
 
 ### v2.0.0（未来）
 - [ ] 工作流引擎
 - [ ] 自动化规则
 - [ ] 图表统计
 - [ ] REST API
+- [ ] 批量导入/导出
 
 ---
 

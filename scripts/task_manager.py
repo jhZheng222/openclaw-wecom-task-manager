@@ -45,6 +45,36 @@ def load_config() -> dict:
 # 加载配置
 CONFIG = load_config()
 
+
+# ==================== 表格自动初始化 ====================
+
+def ensure_table_initialized() -> bool:
+    """
+    确保表格已初始化（在创建任务前自动检查）
+    
+    Returns:
+        bool: 表格是否可用
+    """
+    try:
+        # 导入初始化模块
+        from table_initializer import check_table_status, initialize_table
+        
+        # 检查状态
+        status = check_table_status()
+        
+        if status['is_complete']:
+            return True
+        
+        # 自动初始化
+        print("\n⚠️ 表格字段不完整，自动初始化...")
+        result = initialize_table()
+        
+        return result['success']
+    
+    except Exception as e:
+        print(f"⚠️ 表格检查失败：{e}")
+        return True  # 不阻塞操作
+
 # ==================== 企业微信配置 ====================
 
 DOCID = CONFIG.get("enterpriseWeChat", {}).get(
@@ -283,6 +313,10 @@ def edit_task(task_id: str, fields: Dict[str, Any], agent_id: str = "") -> bool:
         }]
     })
     
+    # 添加最后更新时间
+    now_ts = str(int(datetime.now().timestamp() * 1000))
+    values["最后更新时间"] = now_ts
+    
     if result and result.get("errcode") == 0:
         print(f"✅ 任务已更新：{task_id}")
         print(f"   更新字段：{', '.join(values.keys())}")
@@ -477,6 +511,7 @@ def create_task(
     acceptance: str = "",
     remarks: str = "",
     estimated_hours: int = 0,
+    goal_id: str = "",  # 关联目标 ID
     agent_id: str = ""
 ) -> dict:
     """
@@ -493,6 +528,7 @@ def create_task(
         acceptance: 验收标准
         remarks: 备注（记录问题和解决方案）
         estimated_hours: 预计工时（小时，0 表示不填）
+        goal_id: 关联目标 ID（可选，如 GOAL-001）
         agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
@@ -501,6 +537,10 @@ def create_task(
     # 访问控制检查
     if not check_access(agent_id):
         return {"success": False, "error": "访问拒绝"}
+    
+    # 确保表格已初始化
+    if not ensure_table_initialized():
+        print("⚠️ 表格初始化未完成，但继续创建任务...")
     
     # 自动推断负责人
     if not owner:
@@ -550,11 +590,13 @@ def create_task(
         "负责人": [{"text": owner}],
         "状态": [{"text": "待办"}],
         "截止时间": deadline_ts,  # Unix 时间戳（毫秒）
-        "进度": 0,
-        "验收标准": [{"text": acceptance}],
+        "进度": [{"text": "0%"}],
         "备注": [{"text": remarks}],
         # 创建时间：auto_fill=true，不需要写入
-        "验收状态": [{"text": "待验收"}],
+        # 验收信息：结构化文本（状态 | 验收人 | 标准）
+        "验收信息": [{"text": f"验收状态：待验收\n验收人：{acceptor if acceptor else '待指定'}\n验收标准：{acceptance if acceptance else '无'}"}],
+        # 关联目标（如果有）
+        "关联目标": [{"text": goal_id}] if goal_id else [{"text": ""}],
         "风险等级": [{"text": "中"}]
     }
     
@@ -755,26 +797,30 @@ def complete_task(
     now_ts = str(int(datetime.now().timestamp() * 1000))  # 13 位毫秒，字符串
     now_datetime_full = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
     
-    # 计算实际工时
+    # 计算实际工时（精确到小时）
     values = task.get("values", {})
-    start_time = values.get("实际开始时间", [{}])[0] if values.get("实际开始时间") else {}
+    start_time_val = values.get("实际开始时间")
     
-    # 从时间戳计算工时（支持字符串格式）
-    if start_time:
+    actual_hours = 0.0
+    if start_time_val:
         try:
-            # 转换为数字
-            ts = float(start_time) if isinstance(start_time, str) else start_time
-            # 判断是秒还是毫秒
-            if ts > 10000000000:  # 13 位毫秒
-                start_date = datetime.fromtimestamp(ts / 1000)
-            else:  # 10 位秒
-                start_date = datetime.fromtimestamp(ts)
-            days = (datetime.now() - start_date).days
-            actual_hours = max(1, days * 8)
-        except:
-            actual_hours = 1
+            # 获取时间戳（13 位毫秒）
+            start_ts = start_time_val[0] if isinstance(start_time_val, list) else start_time_val
+            if isinstance(start_ts, dict):
+                start_ts = start_ts.get("text", "")
+            
+            # 转换为毫秒
+            start_ms = int(start_ts) if start_ts else 0
+            if start_ms > 0:
+                # 计算时间差（毫秒 → 小时）
+                end_ms = int(now_ts)
+                hours = (end_ms - start_ms) / (1000 * 3600)
+                actual_hours = round(max(0.5, hours), 2)  # 最少 0.5 小时
+        except Exception as e:
+            print(f"⚠️ 工时计算失败：{e}")
+            actual_hours = 1.0
     else:
-        actual_hours = 1
+        actual_hours = 1.0
     
     # 读取当前备注，添加完成记录
     remarks_val = values.get("备注", [{}])[0].get("text", "") if values.get("备注") else ""
@@ -795,7 +841,7 @@ def complete_task(
         "状态": [{"text": "已完成"}],
         "进度": 100,
         "实际完成时间": now_ts,  # 13 位毫秒时间戳（字符串）
-        "验收状态": [{"text": "待验收"}],
+        # 验收信息在完成任务时更新
         "实际工时": actual_hours,
         "备注": [{"text": remarks_update}]
     }
@@ -986,9 +1032,10 @@ def decompose_goal(
 ) -> bool:
     """
     将目标分解为任务（在企业微信表格中创建）
+    自动填写"关联目标"字段
     
     Args:
-        goal_id: 目标 ID
+        goal_id: 目标 ID（会自动填入"关联目标"字段）
         task_title: 任务标题
         task_id: 任务 ID（可选，自动生成）
         priority: 优先级 (critical/high/medium/low)
@@ -1754,6 +1801,224 @@ def main():
     
     return 0
 
+
+
+
+# ==================== 自动化告警函数 ====================
+
+def check_deadline_alert(agent_id: str = "") -> list:
+    """
+    检查即将到期的任务（< 2 小时）
+    
+    Args:
+        agent_id: 调用者 agent ID
+    
+    Returns:
+        list: 即将到期的任务列表
+    """
+    if not check_access(agent_id):
+        return []
+    
+    tasks = get_all_tasks(agent_id)
+    alert_tasks = []
+    now = datetime.now()
+    
+    for task in tasks:
+        values = task.get("values", {})
+        status = values.get("状态", [{}])[0].get("text", "")
+        
+        # 只检查未完成的任务
+        if status in ["已完成", "已取消"]:
+            continue
+        
+        # 获取截止时间
+        deadline_val = values.get("截止时间")
+        if not deadline_val:
+            continue
+        
+        try:
+            # 解析时间戳（13 位毫秒）
+            deadline_ts = deadline_val[0] if isinstance(deadline_val, list) else deadline_val
+            if isinstance(deadline_ts, dict):
+                deadline_ts = deadline_ts.get("text", "")
+            
+            deadline_ms = int(deadline_ts) if deadline_ts else 0
+            if deadline_ms <= 0:
+                continue
+            
+            deadline_dt = datetime.fromtimestamp(deadline_ms / 1000)
+            hours_left = (deadline_dt - now).total_seconds() / 3600
+            
+            # 小于 2 小时，加入告警
+            if 0 < hours_left < 2:
+                alert_tasks.append({
+                    "task_id": values.get("任务 ID", [{}])[0].get("text", ""),
+                    "task_name": values.get("任务名称", [{}])[0].get("text", ""),
+                    "owner": values.get("负责人", [{}])[0].get("text", ""),
+                    "hours_left": round(hours_left, 2),
+                    "deadline": deadline_dt.strftime("%Y-%m-%d %H:%M")
+                })
+        except Exception as e:
+            print(f"⚠️ 检查任务 {task.get('record_id')} 截止时间失败：{e}")
+    
+    # 按剩余时间排序
+    alert_tasks.sort(key=lambda x: x["hours_left"])
+    
+    if alert_tasks:
+        print(f"🚨 发现 {len(alert_tasks)} 个即将到期的任务（< 2 小时）:")
+        for task in alert_tasks:
+            print(f"  🔴 [{task['task_id']}] {task['task_name']}")
+            print(f"      负责人：{task['owner']} | 剩余：{task['hours_left']}h | 截止：{task['deadline']}")
+    
+    return alert_tasks
+
+
+def check_blocker_alert(agent_id: str = "") -> list:
+    """
+    检查阻塞的任务并通知负责人
+    
+    Args:
+        agent_id: 调用者 agent ID
+    
+    Returns:
+        list: 阻塞的任务列表
+    """
+    if not check_access(agent_id):
+        return []
+    
+    tasks = get_all_tasks(agent_id)
+    blocked_tasks = []
+    
+    for task in tasks:
+        values = task.get("values", {})
+        status = values.get("状态", [{}])[0].get("text", "")
+        
+        # 只检查进行中的任务
+        if status != "进行中":
+            continue
+        
+        # 检查阻塞原因
+        blocker_val = values.get("阻塞原因")
+        if not blocker_val:
+            continue
+        
+        blocker = blocker_val[0] if isinstance(blocker_val, list) else blocker_val
+        if isinstance(blocker, dict):
+            blocker = blocker.get("text", "")
+        
+        if blocker and blocker.strip():
+            blocked_tasks.append({
+                "task_id": values.get("任务 ID", [{}])[0].get("text", ""),
+                "task_name": values.get("任务名称", [{}])[0].get("text", ""),
+                "owner": values.get("负责人", [{}])[0].get("text", ""),
+                "blocker": blocker.strip()
+            })
+    
+    if blocked_tasks:
+        print(f"⚠️ 发现 {len(blocked_tasks)} 个阻塞的任务:")
+        for task in blocked_tasks:
+            print(f"  🟠 [{task['task_id']}] {task['task_name']}")
+            print(f"      负责人：{task['owner']}")
+            print(f"      阻塞原因：{task['blocker']}")
+            # TODO: 发送通知给负责人
+            # send_notification(task['owner'], f"任务 {task['task_id']} 阻塞：{task['blocker']}")
+    
+    return blocked_tasks
+
+
+
+# ==================== 关联目标相关函数 ====================
+
+def get_tasks_by_goal(goal_id: str, agent_id: str = "") -> list:
+    """
+    根据关联目标 ID 获取所有任务
+    
+    Args:
+        goal_id: 目标 ID（如 GOAL-001）
+        agent_id: 调用者 agent ID
+    
+    Returns:
+        list: 任务列表
+    """
+    if not check_access(agent_id):
+        return []
+    
+    tasks = get_all_tasks(agent_id)
+    goal_tasks = []
+    
+    for task in tasks:
+        values = task.get("values", {})
+        goal_val = values.get("关联目标", [{}])[0] if values.get("关联目标") else {}
+        
+        # 获取关联目标文本
+        if isinstance(goal_val, dict):
+            goal_text = goal_val.get("text", "")
+        else:
+            goal_text = str(goal_val) if goal_val else ""
+        
+        # 匹配目标 ID
+        if goal_text == goal_id:
+            goal_tasks.append({
+                "record_id": task["record_id"],
+                "task_id": values.get("任务 ID", [{}])[0].get("text", ""),
+                "task_name": values.get("任务名称", [{}])[0].get("text", ""),
+                "status": values.get("状态", [{}])[0].get("text", ""),
+                "priority": values.get("优先级", [{}])[0].get("text", ""),
+                "owner": values.get("负责人", [{}])[0].get("text", ""),
+                "progress": values.get("进度", 0)
+            })
+    
+    if goal_tasks:
+        print(f"📊 目标 {goal_id} 共有 {len(goal_tasks)} 个任务:")
+        for task in goal_tasks:
+            status_icon = "✅" if task["status"] == "已完成" else "🔄" if task["status"] == "进行中" else "⏸️"
+            print(f"  {status_icon} [{task['task_id']}] {task['task_name']} ({task['progress']}%)")
+    
+    return goal_tasks
+
+
+def get_goal_progress(goal_id: str, agent_id: str = "") -> dict:
+    """
+    计算目标的整体进度
+    
+    Args:
+        goal_id: 目标 ID
+        agent_id: 调用者 agent ID
+    
+    Returns:
+        dict: 目标进度统计
+    """
+    tasks = get_tasks_by_goal(goal_id, agent_id)
+    
+    if not tasks:
+        return {
+            "goal_id": goal_id,
+            "total_tasks": 0,
+            "completed": 0,
+            "in_progress": 0,
+            "pending": 0,
+            "progress_percent": 0
+        }
+    
+    completed = sum(1 for t in tasks if t["status"] == "已完成")
+    in_progress = sum(1 for t in tasks if t["status"] == "进行中")
+    pending = sum(1 for t in tasks if t["status"] == "待办")
+    
+    progress_percent = round((completed / len(tasks)) * 100, 2) if tasks else 0
+    
+    result = {
+        "goal_id": goal_id,
+        "total_tasks": len(tasks),
+        "completed": completed,
+        "in_progress": in_progress,
+        "pending": pending,
+        "progress_percent": progress_percent
+    }
+    
+    print(f"📈 目标 {goal_id} 进度：{progress_percent}%")
+    print(f"   总任务：{len(tasks)} | ✅ 已完成：{completed} | 🔄 进行中：{in_progress} | ⏸️ 待办：{pending}")
+    
+    return result
 
 if __name__ == "__main__":
     sys.exit(main())
