@@ -821,7 +821,7 @@ def complete_task(
     })
     
     if result and result.get("errcode") == 0:
-        print(f"✅ 任务已完成：{task_id} (工时：{actual_hours}h, 完成时间：{now_str})")
+        print(f"✅ 任务已完成：{task_id} (工时：{actual_hours}h, 完成时间：{now_datetime_full})")
         return True
     else:
         print(f"❌ 任务完成更新失败：{result}")
