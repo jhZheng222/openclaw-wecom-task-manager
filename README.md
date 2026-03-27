@@ -378,7 +378,7 @@ python3 test_*.py
 
 - **项目地址**: https://github.com/jhZheng222/openclaw-wecom-task-manager
 - **问题反馈**: https://github.com/jhZheng222/openclaw-wecom-task-manager/issues
-- **Discord**: https://discord.com/invite/clawd
+- **Discord**: jh.zheng_00604
 
 ---
 
