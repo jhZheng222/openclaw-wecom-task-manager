@@ -17,7 +17,10 @@ from typing import Optional, Dict, Any, List
 # 切换到 workspace 目录（确保 mcporter 能找到 MCP 配置）
 # 支持环境变量 OPENCLAW_WORKSPACE，默认 ~/.openclaw/workspace
 WORKSPACE = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
-os.chdir(WORKSPACE)
+if Path(WORKSPACE).exists():
+    os.chdir(WORKSPACE)
+else:
+    print(f"⚠️ 工作区不存在：{WORKSPACE}，使用当前目录")
 
 # ==================== 配置加载 ====================
 

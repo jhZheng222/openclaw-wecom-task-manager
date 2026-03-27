@@ -18,13 +18,6 @@
     "mode": "whitelist",
     
     "allowedAgents": [
-      // 示例：配置你的 agents
-      // {
-      //   "agentId": "your-agent-id",
-      //   "role": "角色名称",
-      //   "permissions": ["all"],
-      //   "description": "角色描述"
-      // }
     ],
     
     "onDenied": {
