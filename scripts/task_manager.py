@@ -302,7 +302,7 @@ def edit_task(task_id: str, fields: Dict[str, Any], agent_id: str = "") -> bool:
                     continue
             values[field_name] = field_value
         # 单选字段
-        elif field_name in ["状态", "优先级", "任务类型", "风险等级", "验收状态"]:
+        elif field_name in ["状态", "优先级", "任务类型", "风险等级"]:
             values[field_name] = [{"text": field_value}]
         # 文本字段
         else:
@@ -603,7 +603,7 @@ def create_task(
         "备注": [{"text": remarks}],
         # 创建时间：auto_fill=true，不需要写入
         # 验收信息：结构化文本（状态 | 验收人 | 标准）
-        "验收信息": [{"text": f"验收状态：待验收\n验收人：{acceptor if acceptor else '待指定'}\n验收标准：{acceptance if acceptance else '无'}"}],
+        "验收信息": [{"text": f"验收状态：待验收\n验收人：待指定\n验收标准：{acceptance if acceptance else '无'}"}],
         # 关联目标（如果有）
         "关联目标": [{"text": goal_id}] if goal_id else [{"text": ""}],
         "风险等级": [{"text": "中"}]
@@ -862,8 +862,9 @@ def complete_task(
             "link": output_url
         }]
     
-    if acceptor:
-        values_to_update["验收人"] = [{"text": acceptor}]
+    # 更新验收信息（结构化文本）
+    if acceptor or notes:
+        values_to_update["验收信息"] = [{"text": f"验收状态：已通过\n验收人：{acceptor if acceptor else '待指定'}\n验收标准：{notes if notes else '无'}"}]
     
     result = run_mcporter("smartsheet_update_records", {
         "docid": DOCID,
