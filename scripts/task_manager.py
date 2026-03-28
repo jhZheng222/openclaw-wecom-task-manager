@@ -884,6 +884,163 @@ def complete_task(
         return False
 
 
+# ==================== P3 任务弹性调度：暂停/恢复 API ====================
+
+def pause_task(task_id: str, reason: str = "", agent_id: str = "") -> bool:
+    """
+    暂停 P3 任务（仅 P3 优先级任务可暂停）
+    
+    Args:
+        task_id: 任务 ID
+        reason: 暂停原因
+        agent_id: 调用者 agent ID（用于访问控制）
+    
+    Returns:
+        bool: 更新成功返回 True
+    """
+    # 访问控制检查
+    if not check_access(agent_id):
+        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
+        return False
+    
+    task = get_task_by_id(task_id, agent_id)
+    if not task:
+        print(f"❌ 任务不存在：{task_id}")
+        return False
+    
+    values = task.get("values", {})
+    
+    # 验证任务优先级为 P3
+    priority = values.get("优先级", [{}])[0].get("text", "")
+    if priority != "P3":
+        print(f"❌ 仅 P3 优先级任务可暂停，当前任务优先级：{priority}")
+        return False
+    
+    # 验证当前状态为进行中
+    current_status = values.get("状态", [{}])[0].get("text", "")
+    if current_status != "进行中":
+        print(f"❌ 仅进行中的任务可暂停，当前状态：{current_status}")
+        return False
+    
+    # 获取当前进度
+    current_progress = values.get("进度", 0)
+    if isinstance(current_progress, list):
+        current_progress = current_progress[0] if current_progress else 0
+    
+    # 时间戳
+    now_ts = str(int(datetime.now().timestamp() * 1000))
+    now_datetime_full = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+    
+    # 读取当前备注，添加暂停记录
+    remarks_val = values.get("备注", [{}])[0].get("text", "") if values.get("备注") else ""
+    
+    # 构建暂停记录（提示用户填写进度快照）
+    pause_record = f"\n\n---\n【暂停记录】{now_datetime_full}\n"
+    pause_record += f"暂停原因：{reason if reason else '高优先级任务插入'}\n"
+    pause_record += f"当前进度：{current_progress}%\n"
+    pause_record += f"💡 请在恢复前填写进度快照：下一步工作计划、相关文件、注意事项\n"
+    pause_record += "---\n"
+    
+    remarks_update = remarks_val + pause_record if remarks_val else pause_record
+    
+    # 更新状态为"已暂停"
+    values_to_update = {
+        "状态": [{"text": "已暂停"}],
+        "备注": [{"text": remarks_update}],
+        "风险等级": [{"text": "中"}]
+    }
+    
+    result = run_mcporter("smartsheet_update_records", {
+        "docid": DOCID,
+        "sheet_id": SHEET_ID,
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
+        "records": [{
+            "record_id": task["record_id"],
+            "values": values_to_update
+        }]
+    })
+    
+    if result and result.get("errcode") == 0:
+        print(f"⏸️ 任务已暂停：{task_id}")
+        print(f"   暂停原因：{reason if reason else '高优先级任务插入'}")
+        print(f"   当前进度：{current_progress}%")
+        print(f"   💡 提示：请在备注中填写进度快照，方便恢复后继续执行")
+        return True
+    else:
+        print(f"❌ 任务暂停失败：{result}")
+        return False
+
+
+def resume_task(task_id: str, agent_id: str = "") -> bool:
+    """
+    恢复已暂停的 P3 任务
+    
+    Args:
+        task_id: 任务 ID
+        agent_id: 调用者 agent ID（用于访问控制）
+    
+    Returns:
+        bool: 更新成功返回 True
+    """
+    # 访问控制检查
+    if not check_access(agent_id):
+        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
+        return False
+    
+    task = get_task_by_id(task_id, agent_id)
+    if not task:
+        print(f"❌ 任务不存在：{task_id}")
+        return False
+    
+    values = task.get("values", {})
+    
+    # 验证当前状态为已暂停
+    current_status = values.get("状态", [{}])[0].get("text", "")
+    if current_status != "已暂停":
+        print(f"❌ 仅已暂停的任务可恢复，当前状态：{current_status}")
+        return False
+    
+    # 时间戳
+    now_ts = str(int(datetime.now().timestamp() * 1000))
+    now_datetime_full = datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")
+    
+    # 读取当前备注，添加恢复记录
+    remarks_val = values.get("备注", [{}])[0].get("text", "") if values.get("备注") else ""
+    
+    # 构建恢复记录
+    resume_record = f"\n\n---\n【恢复记录】{now_datetime_full}\n"
+    resume_record += f"恢复原因：空闲卡槽释放\n"
+    resume_record += f"继续执行：从当前进度继续\n"
+    resume_record += "---\n"
+    
+    remarks_update = remarks_val + resume_record if remarks_val else resume_record
+    
+    # 更新状态为"进行中"，记录实际开始时间
+    values_to_update = {
+        "状态": [{"text": "进行中"}],
+        "实际开始时间": now_ts,
+        "备注": [{"text": remarks_update}]
+    }
+    
+    result = run_mcporter("smartsheet_update_records", {
+        "docid": DOCID,
+        "sheet_id": SHEET_ID,
+        "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
+        "records": [{
+            "record_id": task["record_id"],
+            "values": values_to_update
+        }]
+    })
+    
+    if result and result.get("errcode") == 0:
+        print(f"▶️ 任务已恢复：{task_id}")
+        print(f"   恢复时间：{now_datetime_full}")
+        return True
+    else:
+        print(f"❌ 任务恢复失败：{result}")
+        return False
+
+
 def get_task_status_report() -> dict:
     """
     生成任务状态报告
@@ -1658,6 +1815,8 @@ def main():
         print("  filter [status=xxx] [owner=xxx] [priority=xxx] - 过滤任务")
         print("  due [days]            - 检查即将到期的任务")
         print("  overdue               - 检查超期任务")
+        print("  pause <id> --reason <reason>  - 暂停 P3 任务 ⭐ 新增")
+        print("  resume <id>           - 恢复已暂停的 P3 任务 ⭐ 新增")
         print("\n🎯 目标管理:")
         print("  create-goal <id> <title> [priority] [context]  - 创建目标")
         print("  decompose <goal_id> <task_title> [priority] [depends_on] - 分解目标为任务")
@@ -1731,6 +1890,21 @@ def main():
                     print(f"  {key}: {val}")
         else:
             print(f"任务不存在：{task_id}")
+    
+    # P3 弹性调度命令
+    elif command == "pause" and len(sys.argv) >= 3:
+        task_id = sys.argv[2]
+        # 解析 --reason 参数
+        reason = ""
+        if "--reason" in sys.argv:
+            reason_idx = sys.argv.index("--reason")
+            if reason_idx + 1 < len(sys.argv):
+                reason = sys.argv[reason_idx + 1]
+        pause_task(task_id, reason=reason)
+    
+    elif command == "resume" and len(sys.argv) >= 3:
+        task_id = sys.argv[2]
+        resume_task(task_id)
     
     # 目标管理命令
     elif command == "create-goal" and len(sys.argv) >= 4:

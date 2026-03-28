@@ -40,6 +40,18 @@
 | `get_next_task()` / `print_next_task()` | 获取下一个可执行任务 | 心跳检查/需要工作时 | P0 |
 | `delete_goal()` | 删除目标及关联任务 | 清理测试目标 | P1 |
 
+### P3 弹性调度（2 个 API）⭐ 新增
+
+| 功能 | 描述 | 调用时机 | 优先级 |
+|------|------|----------|--------|
+| `pause_task()` | 暂停 P3 任务 | 高优先级任务插入时 | P0 |
+| `resume_task()` | 恢复已暂停的 P3 任务 | 卡槽空闲时 | P0 |
+
+**调度策略**：
+- P0/P1/P2 高优先级任务 → 立即执行
+- 被暂停的 P3 任务 → 优先恢复（最早暂停的优先）
+- 新的 P3 任务 → 有空闲卡槽时启动（保留 1 个卡槽给恢复任务）
+
 ---
 
 ## 📦 模块结构
@@ -130,6 +142,10 @@ python3 task_manager.py create-goal GOAL-001 "OpenClaw 系统优化" "high" "背
 python3 task_manager.py decompose GOAL-001 "系统性能分析" "critical" "依赖任务 ID"
 python3 task_manager.py goals                 # 列出所有目标
 python3 task_manager.py next-task             # 获取下一个可执行任务
+
+# ⏸️ P3 弹性调度（新增）
+python3 task_manager.py pause TASK-019 --reason "高优先级任务插入"  # 暂停 P3 任务
+python3 task_manager.py resume TASK-019       # 恢复已暂停的 P3 任务
 ```
 
 ### 方式 3：Python import（主 agent 使用）
@@ -1026,6 +1042,94 @@ python3 scripts/task_manager.py goals
 # 测试下一个任务
 python3 scripts/task_manager.py next-task
 ```
+
+---
+
+---
+
+## 🔄 P3 弹性调度机制 ⭐ 新增
+
+### 调度策略
+
+P3 学习研究任务采用弹性调度机制，确保高优先级任务优先执行的同时，充分利用空闲卡槽：
+
+```
+优先级顺序：
+1. P0/P1/P2 高优先级任务 → 立即执行
+2. 被暂停的 P3 任务 → 优先恢复（最早暂停的优先）
+3. 新的 P3 任务 → 有空闲卡槽时启动（保留 1 个卡槽给恢复任务）
+```
+
+### 状态流转
+
+```
+待办 → 进行中 → 已暂停 → 进行中 → 已完成
+              ↑         ↓
+              └─────────┘
+```
+
+### 暂停/恢复 API
+
+**暂停 P3 任务**：
+```python
+from task_manager import pause_task
+
+# 仅 P3 优先级任务可暂停
+pause_task("TASK-019", reason="高优先级任务插入")
+```
+
+**CLI 命令**：
+```bash
+python3 task_manager.py pause TASK-019 --reason "高优先级任务插入"
+```
+
+**恢复 P3 任务**：
+```python
+from task_manager import resume_task
+
+# 仅已暂停的任务可恢复
+resume_task("TASK-019")
+```
+
+**CLI 命令**：
+```bash
+python3 task_manager.py resume TASK-019
+```
+
+### 进度快照
+
+暂停时会在备注字段自动记录：
+```markdown
+---
+【暂停记录】2026-03-28 10:30
+暂停原因：P1 紧急任务插入
+当前进度：50%
+💡 请在恢复前填写进度快照：下一步工作计划、相关文件、注意事项
+---
+```
+
+恢复时会自动追加记录：
+```markdown
+---
+【恢复记录】2026-03-28 15:00
+恢复原因：空闲卡槽释放
+继续执行：从当前进度继续
+---
+```
+
+### 自动调度
+
+心跳检查脚本 (`tools/wecom-task-sync.py`) 会自动执行 P3 调度：
+
+1. **卡槽空闲时** → 恢复被暂停的 P3（最早暂停的优先）
+2. **卡槽满且高优先级任务等待** → 暂停进行中的 P3
+3. **有待办 P3 且有空闲卡槽** → 启动 P3 任务
+
+### 注意事项
+
+1. **仅 P3 任务可暂停** - P0/P1/P2 任务不受影响
+2. **暂停前填写进度** - 建议在备注中记录当前进度和下一步计划
+3. **自动调度** - 推荐启用心跳检查自动调度，也可手动调用 API
 
 ---
 

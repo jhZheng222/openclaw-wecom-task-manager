@@ -58,7 +58,7 @@ REQUIRED_FIELDS = [
      "options": ["P0", "P1", "P2", "P3"]},
     {"field_name": "负责人", "field_type": "FIELD_TYPE_TEXT"},
     {"field_name": "状态", "field_type": "FIELD_TYPE_SINGLE_SELECT",
-     "options": ["待办", "进行中", "已完成", "已取消"]},
+     "options": ["待办", "进行中", "已暂停", "已完成", "已取消"]},
     {"field_name": "截止时间", "field_type": "FIELD_TYPE_DATE_TIME"},
     {"field_name": "进度", "field_type": "FIELD_TYPE_PROGRESS"},
     
