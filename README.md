@@ -1,139 +1,36 @@
-# OpenClaw 任务态势感知系统
+# WeCom Task Manager - OpenClaw Agents 任务管理技能
 
 [![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
-## 🎯 一眼掌握所有任务的进度、风险和下一步行动
+**OpenClaw Agents 任务管理基础设施** — 为 35+ 专业 agents 提供统一的任务管理能力。
 
-**OpenClaw 任务态势感知系统** — 不是另一个任务管理工具，而是你的**任务雷达**。
-
-| 你的痛点 | 解决方案 |
-|---------|---------|
-| 🤯 任务太多，不知道哪个优先 | **自动推荐优先级最高的下一个任务** |
-| ⚠️ 任务超期了才发现 | **提前 3 天预警风险任务** |
-| 👥 不知道团队在忙什么 | **团队负载实时看板** |
-| 🧩 大目标无从下手 | **自动拆解为可执行步骤** |
-| 🔄 任务卡住了不知道 | **阻塞依赖自动检测** |
-
-> 🎉 **v1.5.0 新增**：多系统支持、环境变量配置、任务态势看板
-
----
-
-## 🎬 典型使用场景
-
-### 场景 1：每天早上，30 秒掌握全局
-
-```bash
-# 今天该做什么？
-python3 task_manager.py next
-
-# 有哪些任务即将到期？
-python3 task_manager.py due 3
-
-# 团队负载如何？
-python3 task_manager.py stats
-```
-
-**输出示例**：
-```
-📋 下一个推荐任务：TASK-027-03 (优先级 P0, 剩余 2 天)
-⚠️ 即将到期：3 个任务 (TASK-018, TASK-009, TASK-003)
-📊 团队负载：techlead(3 个), opsdirector(2 个), investment_coordinator(1 个)
-```
-
-### 场景 2：周会前，5 分钟生成进度报告
-
-```bash
-# 本周完成的任务
-python3 task_manager.py list --status 完成 --since 7d
-
-# 进行中的任务
-python3 task_manager.py list --status 进行中
-```
-
-### 场景 3：发现任务卡住了
-
-```bash
-# 检查超过 3 天没有更新的任务
-python3 task_manager.py list --stale 3
-```
-
-### 场景 4：心跳检查自动推动任务
-
-```python
-# 在 auto-heartbeat.py 中自动调用
-from task_manager import get_next_task, start_task
-
-task = get_next_task()
-if task:
-    start_task(task['id'], agent_id=task['recommended_agent'])
-```
-
----
-
-## 📊 任务动态看板
-
-### 实时态势（命令行）
-
-```bash
-python3 task_manager.py dashboard
-```
-
-**输出示例**：
-```
-╔════════════════════════════════════════════════════════╗
-║           OpenClaw 任务态势看板                        ║
-╠════════════════════════════════════════════════════════╣
-║ 总任务：21  |  进行中：4  |  待办：17  |  完成：156    ║
-╠════════════════════════════════════════════════════════╣
-║ ⚠️  风险任务：3  (剩余 <3 天)                          ║
-║ 🚨 超期任务：0                                         ║
-║ 🔥 高优先级：2  (P0)                                   ║
-╠════════════════════════════════════════════════════════╣
-║ 团队负载：                                             ║
-║   techlead      ████████░░ 8/10                        ║
-║   opsdirector   █████░░░░░ 5/10                        ║
-║   investment    ██████░░░░ 6/10                        ║
-╚════════════════════════════════════════════════════════╝
-```
-
-### 企业微信表格视图
-
-直接打开企业微信智能表格，查看：
-- 📋 **任务列表** - 所有任务的状态、进度、负责人
-- 📈 **统计子表** - 自动生成的多维度统计
-- ⚠️ **风险子表** - 到期/超期/阻塞任务自动汇总
+> 🎉 **v1.5.0 新增**：多系统支持、环境变量配置、表格自动初始化优化
 
 ---
 
 ## 🎯 核心能力
 
-### 态势感知
-- ✅ **实时任务看板** - 一眼掌握全局状态
-- ✅ **风险预警** - 提前 3 天告警即将到期任务
-- ✅ **阻塞检测** - 自动识别依赖未满足的任务
-- ✅ **负载监控** - 团队成员任务分布一目了然
-
-### 智能推荐
-- ✅ **下一步行动** - 根据优先级/依赖/负载推荐下一个任务
-- ✅ **目标拆解** - 大目标自动分解为可执行任务
-- ✅ **任务分配** - 根据负载自动推荐负责人
-
-### 全生命周期管理
+### 任务全生命周期管理
 - ✅ 创建、开始、更新、完成
 - ✅ 依赖管理
-- ✅ 并发控制
-- ✅ 访问控制
+- ✅ 并发控制（可配置最大并发数）
+- ✅ 访问控制（白名单机制）
+
+### 智能任务推荐
+- ✅ **下一步行动** - 根据优先级/依赖/负载推荐下一个可执行任务
+- ✅ **目标拆解** - 大目标自动分解为可执行任务
+- ✅ **任务分配** - 根据负载自动推荐负责人
 
 ### 自动化集成
 - ✅ **心跳检查集成** - 自动推动待办任务
 - ✅ **企业微信通知** - 任务状态变更自动通知
-- ✅ **表格自动初始化** - 开箱即用
+- ✅ **表格自动初始化** - 开箱即用，无需手动配置字段
 
 ### 技术特性
-- 🌐 **多系统支持** - 配置驱动，任意 OpenClaw 系统可用
-- 🔧 **环境变量支持** - OPENCLAW_WORKSPACE、MCPORTER_PATH
+- 🌐 **多系统支持** - 配置驱动，任意 OpenClaw 系统可用（v1.5.0 新增）
+- 🔧 **环境变量支持** - OPENCLAW_WORKSPACE、MCPORTER_PATH（v1.5.0 新增）
 - 📊 **企业微信集成** - 使用企业微信智能表格存储
 - 🔒 **访问控制** - 白名单机制，支持自定义 agents
 - ⚡ **并发限制** - 可配置的最大并发任务数
@@ -141,6 +38,41 @@ python3 task_manager.py dashboard
 - 📝 **配置驱动** - 独立配置文件，无需修改代码
 - 🧪 **完整测试** - 100% 测试覆盖
 - 🚀 **开箱即用** - 自动初始化表格，无需手动配置字段
+
+---
+
+## 🏗️ 系统架构
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Agent     │────▶│  Task Mgr    │────▶│  企业微信智能表格  │
+│ (调用方)    │     │ (task_manager)│     │  (数据存储)      │
+└─────────────┘     └──────────────┘     └─────────────────┘
+       │                    │                      │
+       │                    ▼                      │
+       │           ┌──────────────┐               │
+       └───────────│  config.json │◀──────────────┘
+                   │  (配置驱动)   │
+                   └──────────────┘
+```
+
+**核心组件**：
+- `task_manager.py` - 核心逻辑（13 个任务 API + 5 个目标 API）
+- `table_initializer.py` - 表格自动初始化
+- `config.json` - 配置驱动（无需修改代码）
+- `test_*.py` - 完整测试覆盖
+
+---
+
+## 📊 任务可视化
+
+所有任务数据同步到企业微信智能表格，人类用户可随时查看：
+
+- 📋 **任务列表** - 所有任务的状态、进度、负责人
+- 📈 **统计子表** - 按类型/优先级/负责人的多维度统计
+- ⚠️ **风险视图** - 到期/超期/阻塞任务自动筛选
+
+**查看方式**：直接打开企业微信智能表格链接即可。
 
 ---
 
@@ -510,104 +442,25 @@ wecom-task-manager/
 
 ---
 
-## ❓ 常见问题 (FAQ)
-
-### Q1: 提示 "找不到 mcporter 工具"
-**解决**：
-```bash
-# 检查 mcporter 是否安装
-openclaw plugins list | grep mcporter
-
-# 如果没有，安装它
-openclaw plugins install @openclaw/mcporter
-```
-
-### Q2: 企业微信 API 调用失败
-**检查**：
-1. docId/sheetId 是否正确
-2. 企业微信机器人是否有表格访问权限
-3. 网络连接是否正常
-
-```bash
-# 测试连接
-cd ~/.openclaw/skills/wecom-task-manager/scripts
-AGENT_ID="da-yan" python3 task_manager.py stats
-```
-
-### Q3: 表格字段缺失
-**解决**：
-```bash
-cd ~/.openclaw/skills/wecom-task-manager/scripts
-python3 table_initializer.py init
-```
-
-### Q4: 任务无法创建/更新
-**检查**：
-1. `config.json` 是否存在且格式正确
-2. 访问控制是否允许当前 agent
-3. 表格是否有写入权限
-
-**调试**：
-```bash
-# 查看配置是否正确加载
-cd ~/.openclaw/skills/wecom-task-manager/scripts
-python3 -c "from config import load_config; print(load_config())"
-```
-
-### Q5: 提示 "任务已存在"
-**原因**：任务 ID 已存在于表格中
-
-**解决**：
-- 使用不同的任务 ID
-- 或者先删除旧任务：`python3 task_manager.py delete TASK-XXX`
-
----
-
-## 🔒 安全最佳实践
+## 🔒 安全说明
 
 ### 配置文件保护
 ```bash
-# 确保 config.json 不被提交
+# config.json 包含敏感信息，已添加到 .gitignore
+# 不要将 config.json 提交到 Git
 chmod 600 ~/.openclaw/skills/wecom-task-manager/config.json
-git update-index --assume-unchanged config.json
 ```
 
 ### 访问控制
 - ✅ 默认启用白名单机制
 - ✅ 仅允许配置的 agents 访问
-- ✅ 敏感操作记录日志
-
-### 数据备份
-建议定期备份企业微信表格数据：
-```bash
-# 导出所有任务数据
-cd ~/.openclaw/skills/wecom-task-manager/scripts
-python3 task_manager.py export > backup_$(date +%Y%m%d).json
-```
-
----
-
-## 📊 性能基准
-
-| 操作 | 平均耗时 | 95 百分位 |
-|------|---------|----------|
-| 创建任务 | ~200ms | ~350ms |
-| 更新进度 | ~150ms | ~280ms |
-| 查询任务 | ~100ms | ~200ms |
-| 统计分析 | ~300ms | ~500ms |
-
-**测试环境**：
-- OpenClaw v2026.3.24
-- 企业微信智能表格（1000+ 任务）
-- 本地网络
-
-**并发限制**：默认 3 个并发任务（可配置）
+- ✅ 所有操作记录日志
 
 ---
 
 ## 📝 更新日志
 
-- **v1.5.0** (2026-03-28) - 多系统支持、环境变量配置、表格自动初始化优化
+- **v1.5.0** (2026-03-28) - 多系统支持、环境变量配置
 - **v1.4.0** (2026-03-27) - 表格自动初始化功能
 - **v1.3.0** (2026-03-26) - 关联目标字段支持
 
@@ -670,39 +523,26 @@ python3 test_*.py
 
 - **项目地址**: https://github.com/jhZheng222/openclaw-wecom-task-manager
 - **问题反馈**: https://github.com/jhZheng222/openclaw-wecom-task-manager/issues
-- **Discord**: jh.zheng_00604
 
 ---
 
 ## 🎯 路线图
 
-### v1.5.0（当前版本）✅ 已发布
-- ✅ 多系统支持 - 可在任意 OpenClaw 系统使用
-- ✅ 配置驱动 - 无需修改代码
-- ✅ 环境变量支持 - OPENCLAW_WORKSPACE、MCPORTER_PATH
-- ✅ 动态路径查找 - 自动查找 mcporter
-- ✅ 预计工时字段修复
-- ✅ 文档完善 - FAQ、架构图、安全说明
+### v1.5.0（当前版本）✅
+- ✅ 多系统支持
+- ✅ 环境变量支持
+- ✅ 表格自动初始化优化
 
-### v1.4.0 ✅ 已发布
+### v1.4.0 ✅
 - ✅ 表格自动初始化功能
-- ✅ 字段自动检查和补齐
-- ✅ CLI 初始化工具
-- ✅ 开箱即用体验
 
-### v1.3.0 ✅ 已发布
+### v1.3.0 ✅
 - ✅ 关联目标字段支持
-- ✅ 验收信息字段合并
-- ✅ 进度 5 档制
-- ✅ 实际工时自动计算
 
-### v2.0.0（规划中）🔮
+### v2.0.0（规划中）
 - [ ] 工作流引擎
 - [ ] 自动化规则
-- [ ] 图表统计
 - [ ] REST API
-- [ ] 批量导入/导出
-- [ ] Web 管理界面
 
 ---
 
