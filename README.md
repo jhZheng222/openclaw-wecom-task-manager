@@ -1,11 +1,12 @@
 # WeCom Task Manager - OpenClaw Agents 任务管理技能
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
 **OpenClaw Agents 任务管理基础设施** — 为 35+ 专业 agents 提供统一的任务管理能力。
 
+> 🎉 **v1.6.0 新增**：P3 弹性调度机制、暂停/恢复 API、自动调度策略
 > 🎉 **v1.5.0 新增**：多系统支持、环境变量配置、表格自动初始化优化
 
 ---
@@ -27,6 +28,7 @@
 - ✅ **心跳检查集成** - 自动推动待办任务
 - ✅ **企业微信通知** - 任务状态变更自动通知
 - ✅ **表格自动初始化** - 开箱即用，无需手动配置字段
+- ✅ **P3 弹性调度** - 高优先级优先，P3 任务自动暂停/恢复（v1.6.0 新增）
 
 ### 技术特性
 - 🌐 **多系统支持** - 配置驱动，任意 OpenClaw 系统可用（v1.5.0 新增）
@@ -38,6 +40,7 @@
 - 📝 **配置驱动** - 独立配置文件，无需修改代码
 - 🧪 **完整测试** - 100% 测试覆盖
 - 🚀 **开箱即用** - 自动初始化表格，无需手动配置字段
+- 🎯 **P3 弹性调度** - 学习研究任务自动调度，最大化资源利用（v1.6.0 新增）
 
 ---
 
@@ -73,6 +76,57 @@
 - ⚠️ **风险视图** - 到期/超期/阻塞任务自动筛选
 
 **查看方式**：直接打开企业微信智能表格链接即可。
+
+---
+
+## 🎯 v1.6.0 新功能：P3 弹性调度机制
+
+### 什么是 P3 弹性调度？
+
+P3 优先级专用于**学习研究任务**。弹性调度机制确保：
+- 高优先级任务（P0/P1/P2）优先执行
+- P3 任务充分利用空闲卡槽
+- 资源利用率最大化
+
+### 调度策略
+
+```
+1. P0/P1/P2 高优先级任务 → 立即执行
+2. 被暂停的 P3 任务 → 优先恢复（最早暂停优先）
+3. 新的 P3 任务 → 有空闲卡槽时启动（保留 1 个卡槽给恢复任务）
+```
+
+### 状态流转
+
+```
+待办 → 进行中 → 已暂停 → 进行中 → 已完成
+              ↑         ↓
+              └─────────┘
+```
+
+### 使用方式
+
+**暂停 P3 任务**：
+```bash
+python3 task_manager.py pause TASK-019 --reason "高优先级任务插入"
+```
+
+**恢复 P3 任务**：
+```bash
+python3 task_manager.py resume TASK-019
+```
+
+**自动调度**：
+心跳检查脚本会自动执行 P3 调度，无需手动干预。
+
+### 测试验证
+
+- ✅ 场景 1: P3 无竞争启动
+- ✅ 场景 2: P3 被高优先级抢占暂停
+- ✅ 场景 3: P3 空闲恢复
+- ✅ 场景 5: 卡槽满 P3 等待
+
+**通过率**: 4/5 (80%)
 
 ---
 
