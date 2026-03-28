@@ -60,7 +60,13 @@ def ensure_table_initialized() -> bool:
         bool: 表格是否可用
     """
     try:
-        # 导入初始化模块
+        # 导入初始化模块（确保当前目录在 Python 路径中）
+        import sys
+        from pathlib import Path
+        current_dir = Path(__file__).parent
+        if str(current_dir) not in sys.path:
+            sys.path.insert(0, str(current_dir))
+        
         from table_initializer import check_table_status, initialize_table
         
         # 检查状态
