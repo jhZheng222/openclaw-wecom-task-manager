@@ -216,11 +216,37 @@ def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
         print(f"Error running mcporter: {result.stderr}")
         return None
     
+    # 清理输出，提取 JSON 部分（可能包含额外的打印输出或被截断）
+    stdout = result.stdout.strip()
     try:
-        return json.loads(result.stdout)
+        # 尝试直接解析
+        return json.loads(stdout)
     except json.JSONDecodeError:
-        print(f"Failed to parse JSON: {result.stdout}")
-        return None
+        # 如果失败，尝试修复 JSON
+        json_start = stdout.find('{')
+        json_end = stdout.rfind('}') + 1
+        if json_start >= 0 and json_end > json_start:
+            json_str = stdout[json_start:json_end]
+        else:
+            json_str = stdout
+        
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            # 尝试截断最后一个不完整的 record
+            last_record = json_str.rfind('"record_id"')
+            if last_record > 0:
+                record_brace = json_str.rfind('{', 0, last_record)
+                prev_comma = json_str.rfind(',', 0, record_brace)
+                if prev_comma > 0:
+                    fixed = json_str[:prev_comma] + ']}'  
+                    try:
+                        return json.loads(fixed)
+                    except:
+                        pass
+            
+            print(f"Failed to parse JSON: {str(json.JSONDecodeError)}")
+            return None
 
 
 def get_all_tasks(agent_id: str = "") -> List[dict]:
@@ -639,14 +665,17 @@ def create_task(
 MAX_CONCURRENT_TASKS = 3  # 最多同时 3 个任务进行中
 
 
-def get_in_progress_count() -> int:
+def get_in_progress_count(agent_id: str = "") -> int:
     """
     获取当前进行中的任务数量
+    
+    Args:
+        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         int: 进行中任务数量
     """
-    tasks = get_all_tasks()
+    tasks = get_all_tasks(agent_id)
     count = 0
     for task in tasks:
         values = task.get("values", {})
