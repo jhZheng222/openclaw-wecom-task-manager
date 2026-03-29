@@ -90,6 +90,7 @@ def ensure_table_initialized() -> bool:
 # 从配置文件读取，不提供默认值（强制用户配置）
 DOCID = CONFIG.get("enterpriseWeChat", {}).get("docId")
 SHEET_ID = CONFIG.get("enterpriseWeChat", {}).get("sheetId")
+DOC_URL = CONFIG.get("enterpriseWeChat", {}).get("url")
 
 # 动态查找 mcporter 路径
 import shutil
@@ -192,7 +193,7 @@ def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
 def get_all_tasks() -> List[dict]:
     """获取所有任务"""
     result = run_mcporter("smartsheet_get_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID
     })
     if not result or result.get("errcode") != 0:
@@ -271,7 +272,7 @@ def edit_task(task_id: str, fields: Dict[str, Any]) -> bool:
         return False
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -567,7 +568,7 @@ def create_task(
         values["预计工时"] = estimated_hours
     
     result = run_mcporter("smartsheet_add_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "records": [{"values": values}]
     })
@@ -653,7 +654,7 @@ def start_task(task_id: str, owner: str = "") -> bool:
         values["负责人"] = [{"text": owner}]
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -696,7 +697,7 @@ def update_progress(task_id: str, progress: int, blocker: str = "") -> bool:
         values["风险等级"] = [{"text": "高"}]
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -801,7 +802,7 @@ def complete_task(
         values_to_update["验收信息"] = [{"text": f"验收状态：已通过\n验收人：{acceptor if acceptor else '待指定'}\n验收标准：{notes if notes else '无'}"}]
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -879,7 +880,7 @@ def pause_task(task_id: str, reason: str = "") -> bool:
     }
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -945,7 +946,7 @@ def resume_task(task_id: str) -> bool:
     }
     
     result = run_mcporter("smartsheet_update_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
         "records": [{
@@ -1230,7 +1231,7 @@ def decompose_goal(
             task = get_task_by_id(task_id)
             if task:
                 run_mcporter("smartsheet_update_records", {
-                    "docid": DOCID,
+                    "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
                     "sheet_id": SHEET_ID,
                     "key_type": "CELL_VALUE_KEY_TYPE_FIELD_TITLE",
                     "records": [{
@@ -1431,7 +1432,7 @@ def delete_task(task_id: str) -> bool:
     record_id = task["record_id"]
     
     result = run_mcporter_with_retry("smartsheet_delete_records", {
-        "docid": DOCID,
+        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
         "sheet_id": SHEET_ID,
         "record_ids": [record_id]
     })
