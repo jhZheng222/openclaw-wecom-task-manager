@@ -6,7 +6,7 @@
 
 **OpenClaw Agents 任务管理基础设施** — 为 35+ 专业 agents 提供统一的任务管理能力。
 
-> 🎉 **v1.7.0 新增**：修复 wecom_mcp 调用方式，获取全部 57 条任务记录、完整流程文档更新
+> 🎉 **v1.7.0 新增**：修复 wecom_mcp 调用方式获取全部 57 条任务、权限管理迁移到系统配置层、完整流程文档更新
 > 🎉 **v1.6.0 新增**：P3 弹性调度机制、暂停/恢复 API、自动调度策略
 > 🎉 **v1.5.0 新增**：多系统支持、环境变量配置、表格自动初始化优化
 
@@ -77,6 +77,109 @@
 - ⚠️ **风险视图** - 到期/超期/阻塞任务自动筛选
 
 **查看方式**：直接打开企业微信智能表格链接即可。
+
+---
+
+## 🎯 v1.7.0 新功能：数据获取修复与权限重构
+
+### 核心修复
+
+**问题**：v1.6.x 及之前版本使用错误的 `wecom_mcp call doc` 命令，导致只能获取 30 条任务记录（实际 57 条）
+
+**解决方案**：改为使用 `mcporter call wecom-doc` 方式，可获取全部 57 条任务记录
+
+### 主要更新
+
+#### 1. 数据获取修复 ✅
+
+**修复前**：
+```bash
+# ❌ 错误：wecom_mcp 不是独立 CLI 命令
+wecom_mcp call doc smartsheet_get_records ...
+# 结果：只能获取 30 条任务
+```
+
+**修复后**：
+```bash
+# ✅ 正确：使用 mcporter 调用 wecom-doc
+mcporter call wecom-doc.smartsheet_get_records url=<URL> sheet_id=<SHEET_ID>
+# 结果：获取全部 57 条任务
+```
+
+**验证方法**：
+```bash
+python3 task_manager.py list
+# 应该返回 57 条任务，而不是 30 条
+```
+
+#### 2. 权限管理重构 ✅
+
+**架构变更**：
+- ❌ **移除**：技能中的访问控制代码（`check_access()`、`ALLOWED_AGENTS` 等）
+- ✅ **迁移**：权限管理到 OpenClaw 系统配置层（`openclaw.json`）统一管理
+
+**配置方式**：
+```json
+{
+  "skills": {
+    "entries": {
+      "wecom-task-manager": {
+        "enabled": true,
+        "allowedAgents": [
+          "da-yan",
+          "techlead",
+          "opsdirector",
+          "investment_coordinator",
+          "general_coordinator"
+        ]
+      }
+    }
+  }
+}
+```
+
+**收益**：
+- ✅ 职责清晰：系统管权限，技能管业务
+- ✅ 配置统一：集中在 openclaw.json
+- ✅ 易于维护：改权限不用动技能代码
+- ✅ 可复用：技能可被其他系统复用
+
+#### 3. 完整流程文档更新 ✅
+
+**新增文档**（4 个）：
+- 📄 `docs/wecom-task-manager-call-flow.md` (v1.7.0) - 技能调用流程详解
+- 📄 `docs/wecom-task-manager-fields-detail.md` (v1.7.0) - 字段写入时机详解
+- 📄 `docs/task-p3-schedule-flow.md` (v1.7.0) - P3 任务弹性调度流程
+- 📄 `docs/task-automation-overview.md` (v1.7.0) - 任务自动化总览
+
+**文档覆盖**：
+- ✅ 完整的任务生命周期管理流程
+- ✅ P3 弹性调度机制详解
+- ✅ 7×24 自动化系统架构
+- ✅ 企业微信表格字段写入规范
+
+### 技术细节
+
+**代码变更**：
+- 修改 `run_wecom_mcp()` 函数，使用 `mcporter call wecom-doc` 方式
+- 优先使用 wecom-doc 获取完整数据（避免分页限制）
+- 回退到 mcporter 作为备选方案
+- 修复工作区路径检测，优先使用 general_coordinator workspace
+
+**测试验证**：
+- ✅ `list` 命令：返回 57 个任务（之前 30 个）
+- ✅ `report` 命令：正确统计所有状态
+- ✅ `stats` 命令：多维度统计正确
+- ✅ `filter` 命令：按状态过滤正确
+- ✅ `query` 命令：查询单个任务详情正确
+
+**数据对比**：
+| 指标 | v1.6.x | v1.7.0 | 改善 |
+|------|--------|--------|------|
+| 总任务数 | 30 个 | **57 个** | +90% |
+| 已完成 | 20 个 | 20 个 | ✅ |
+| 待办 | 7 个 | **26 个** | ✅ |
+| 进行中 | 3 个 | 2 个 | ✅ |
 
 ---
 
