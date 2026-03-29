@@ -1,11 +1,12 @@
 # WeCom Task Manager - OpenClaw Agents 任务管理技能
 
-[![Version](https://img.shields.io/badge/version-1.6.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](https://github.com/jhZheng222/openclaw-wecom-task-manager)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/platform-OpenClaw-orange.svg)](https://github.com/openclaw/openclaw)
 
 **OpenClaw Agents 任务管理基础设施** — 为 35+ 专业 agents 提供统一的任务管理能力。
 
+> 🎉 **v1.7.0 新增**：修复 wecom_mcp 调用方式，获取全部 57 条任务记录、完整流程文档更新
 > 🎉 **v1.6.0 新增**：P3 弹性调度机制、暂停/恢复 API、自动调度策略
 > 🎉 **v1.5.0 新增**：多系统支持、环境变量配置、表格自动初始化优化
 

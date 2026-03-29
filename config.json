@@ -1,11 +1,11 @@
 {
   "_comment": "WeCom Task Manager 技能配置文件",
-  "_version": "1.2.0",
-  "_updatedAt": "2026-03-26",
+  "_version": "1.7.0",
+  "_updatedAt": "2026-03-29",
   "skill": {
     "name": "wecom-task-manager",
     "description": "企业微信任务管理技能",
-    "version": "1.2.0",
+    "version": "1.7.0",
     "global": true,
     "autoLoad": true
   },
