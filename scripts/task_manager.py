@@ -102,74 +102,14 @@ if not DOCID or not SHEET_ID:
         "参考：config.template.json"
     )
 
-# ==================== 访问控制配置 ====================
+# ==================== 并发控制配置 ====================
 
-# 允许调用技能的 agents 列表（从配置文件读取）
-ALLOWED_AGENTS = [
-    agent["agentId"]
-    for agent in CONFIG.get("accessControl", {}).get("allowedAgents", [])
-]
-if not ALLOWED_AGENTS:
-    # 不提供默认值，使用空列表
-    # 用户需要在 config.json 中配置 allowedAgents
-    print("⚠️ 未配置 accessControl.allowedAgents，将使用空列表（无 agents 可访问）")
-    print("   请参考 config.template.json 配置示例")
-
-# 访问控制开关
-ACCESS_CONTROL_ENABLED = CONFIG.get("accessControl", {}).get("enabled", True)
-
-# 并发控制配置
 MAX_CONCURRENT_TASKS = CONFIG.get("concurrency", {}).get("maxConcurrentTasks", 3)
 
 # 重试配置
 RETRY_ENABLED = CONFIG.get("retry", {}).get("enabled", True)
 MAX_RETRIES = CONFIG.get("retry", {}).get("maxRetries", 3)
 BACKOFF_SECONDS = CONFIG.get("retry", {}).get("backoffSeconds", 2)
-
-
-def check_access(agent_id: str = "") -> bool:
-    """
-    检查 agent 是否有权限调用技能
-    
-    Args:
-        agent_id: 调用者的 agent ID
-    
-    Returns:
-        bool: 有权限返回 True，否则返回 False
-    """
-    if not ACCESS_CONTROL_ENABLED:
-        return True
-    
-    if not agent_id:
-        # 如果没有提供 agent_id，尝试从环境变量获取
-        agent_id = os.environ.get("AGENT_ID", "")
-    
-    if not agent_id:
-        print("⚠️ 无法获取调用者 ID，拒绝访问")
-        return False
-    
-    # 检查是否在白名单中
-    if agent_id in ALLOWED_AGENTS:
-        return True
-    
-    # 拒绝访问
-    print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限调用 wecom-task-manager 技能")
-    print(f"   允许的 agents: {', '.join(ALLOWED_AGENTS)}")
-    print(f"   请联系 da-yan 或您的团队负责人获取权限")
-    return False
-
-
-def require_access(agent_id: str = "") -> bool:
-    """
-    访问控制装饰器函数
-    
-    Args:
-        agent_id: 调用者的 agent ID
-    
-    Returns:
-        bool: 是否通过检查（True=通过，False=拒绝）
-    """
-    return check_access(agent_id)
 
 # Agent 分派规则（从配置文件读取，提供通用默认值）
 # 用户可以在 config.json 中自定义映射关系
@@ -210,7 +150,7 @@ def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
     """执行 mcporter 命令"""
     args_json = json.dumps(args_dict, ensure_ascii=False)
     cmd = f'{MCPORTER_PATH} call wecom-doc.{command} --args \'{args_json}\' --output json'
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, encoding='utf-8', errors='ignore')
     
     if result.returncode != 0:
         print(f"Error running mcporter: {result.stderr}")
@@ -249,12 +189,8 @@ def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
             return None
 
 
-def get_all_tasks(agent_id: str = "") -> List[dict]:
+def get_all_tasks() -> List[dict]:
     """获取所有任务"""
-    # 访问控制检查
-    if not check_access(agent_id):
-        return []
-    
     result = run_mcporter("smartsheet_get_records", {
         "docid": DOCID,
         "sheet_id": SHEET_ID
@@ -265,13 +201,9 @@ def get_all_tasks(agent_id: str = "") -> List[dict]:
     return result.get("records", [])
 
 
-def get_task_by_id(task_id: str, agent_id: str = "") -> Optional[dict]:
+def get_task_by_id(task_id: str) -> Optional[dict]:
     """根据任务 ID 查询任务"""
-    # 访问控制检查
-    if not check_access(agent_id):
-        return None
-    
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     for task in tasks:
         values = task.get("values", {})
         tid = values.get("任务 ID", [{}])[0].get("text", "")
@@ -282,7 +214,7 @@ def get_task_by_id(task_id: str, agent_id: str = "") -> Optional[dict]:
 
 # ==================== P0 功能：任务编辑 ====================
 
-def edit_task(task_id: str, fields: Dict[str, Any], agent_id: str = "") -> bool:
+def edit_task(task_id: str, fields: Dict[str, Any]) -> bool:
     """
     编辑任务信息
     
@@ -295,17 +227,11 @@ def edit_task(task_id: str, fields: Dict[str, Any], agent_id: str = "") -> bool:
                     "截止时间": "2026-04-20",
                     "任务描述": "新的描述"
                 }
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -552,11 +478,10 @@ def create_task(
     acceptance: str = "",
     remarks: str = "",
     estimated_hours: int = 0,
-    goal_id: str = "",  # 关联目标 ID
-    agent_id: str = ""
+    goal_id: str = ""  # 关联目标 ID
 ) -> dict:
     """
-    创建新任务（带访问控制）
+    创建新任务
     
     Args:
         task_id: 任务 ID (如 TASK-019)
@@ -570,14 +495,10 @@ def create_task(
         remarks: 备注（记录问题和解决方案）
         estimated_hours: 预计工时（小时，0 表示不填）
         goal_id: 关联目标 ID（可选，如 GOAL-001）
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         dict: {success: bool, record_id: str, task_id: str}
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        return {"success": False, "error": "访问拒绝"}
     
     # 确保表格已初始化
     if not ensure_table_initialized():
@@ -665,17 +586,14 @@ def create_task(
 MAX_CONCURRENT_TASKS = 3  # 最多同时 3 个任务进行中
 
 
-def get_in_progress_count(agent_id: str = "") -> int:
+def get_in_progress_count() -> int:
     """
     获取当前进行中的任务数量
-    
-    Args:
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         int: 进行中任务数量
     """
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     count = 0
     for task in tasks:
         values = task.get("values", {})
@@ -685,24 +603,18 @@ def get_in_progress_count(agent_id: str = "") -> int:
     return count
 
 
-def start_task(task_id: str, owner: str = "", agent_id: str = "") -> bool:
+def start_task(task_id: str, owner: str = "") -> bool:
     """
     开始执行任务（更新状态为进行中，记录实际开始时间）
     
     Args:
         task_id: 任务 ID
         owner: 负责人
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -758,7 +670,7 @@ def start_task(task_id: str, owner: str = "", agent_id: str = "") -> bool:
         return False
 
 
-def update_progress(task_id: str, progress: int, blocker: str = "", agent_id: str = "") -> bool:
+def update_progress(task_id: str, progress: int, blocker: str = "") -> bool:
     """
     更新任务进度
     
@@ -766,17 +678,11 @@ def update_progress(task_id: str, progress: int, blocker: str = "", agent_id: st
         task_id: 任务 ID
         progress: 进度 (0-100)
         blocker: 阻塞原因（可选）
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -811,8 +717,7 @@ def complete_task(
     task_id: str,
     output_url: str = "",
     acceptor: str = "系统",
-    notes: str = "",
-    agent_id: str = ""
+    notes: str = ""
 ) -> bool:
     """
     标记任务完成
@@ -822,17 +727,11 @@ def complete_task(
         output_url: 输出物链接（如报告 URL）
         acceptor: 验收人
         notes: 完成说明（遇到的问题及解决方案）
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -921,24 +820,18 @@ def complete_task(
 
 # ==================== P3 任务弹性调度：暂停/恢复 API ====================
 
-def pause_task(task_id: str, reason: str = "", agent_id: str = "") -> bool:
+def pause_task(task_id: str, reason: str = "") -> bool:
     """
     暂停 P3 任务（仅 P3 优先级任务可暂停）
     
     Args:
         task_id: 任务 ID
         reason: 暂停原因
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -1006,23 +899,17 @@ def pause_task(task_id: str, reason: str = "", agent_id: str = "") -> bool:
         return False
 
 
-def resume_task(task_id: str, agent_id: str = "") -> bool:
+def resume_task(task_id: str) -> bool:
     """
     恢复已暂停的 P3 任务
     
     Args:
         task_id: 任务 ID
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 更新成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -1526,23 +1413,17 @@ def print_next_task():
 
 # ==================== P1 功能：任务删除 ====================
 
-def delete_task(task_id: str, agent_id: str = "") -> bool:
+def delete_task(task_id: str) -> bool:
     """
     删除任务
     
     Args:
         task_id: 任务 ID
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 删除成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
-    task = get_task_by_id(task_id, agent_id)
+    task = get_task_by_id(task_id)
     if not task:
         print(f"❌ 任务不存在：{task_id}")
         return False
@@ -1563,24 +1444,18 @@ def delete_task(task_id: str, agent_id: str = "") -> bool:
         return False
 
 
-def delete_goal(goal_id: str, agent_id: str = "") -> bool:
+def delete_goal(goal_id: str) -> bool:
     """
     删除目标及关联任务
     
     Args:
         goal_id: 目标 ID
-        agent_id: 调用者 agent ID（用于访问控制）
     
     Returns:
         bool: 删除成功返回 True
     """
-    # 访问控制检查
-    if not check_access(agent_id):
-        print(f"❌ 访问拒绝：agent '{agent_id}' 没有权限")
-        return False
-    
     # 获取所有任务
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     
     # 找到属于该目标的所有任务
     goal_tasks = []
@@ -2038,20 +1913,14 @@ def main():
 
 # ==================== 自动化告警函数 ====================
 
-def check_deadline_alert(agent_id: str = "") -> list:
+def check_deadline_alert() -> list:
     """
     检查即将到期的任务（< 2 小时）
-    
-    Args:
-        agent_id: 调用者 agent ID
     
     Returns:
         list: 即将到期的任务列表
     """
-    if not check_access(agent_id):
-        return []
-    
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     alert_tasks = []
     now = datetime.now()
     
@@ -2105,20 +1974,14 @@ def check_deadline_alert(agent_id: str = "") -> list:
     return alert_tasks
 
 
-def check_blocker_alert(agent_id: str = "") -> list:
+def check_blocker_alert() -> list:
     """
     检查阻塞的任务并通知负责人
-    
-    Args:
-        agent_id: 调用者 agent ID
     
     Returns:
         list: 阻塞的任务列表
     """
-    if not check_access(agent_id):
-        return []
-    
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     blocked_tasks = []
     
     for task in tasks:
@@ -2161,21 +2024,17 @@ def check_blocker_alert(agent_id: str = "") -> list:
 
 # ==================== 关联目标相关函数 ====================
 
-def get_tasks_by_goal(goal_id: str, agent_id: str = "") -> list:
+def get_tasks_by_goal(goal_id: str) -> list:
     """
     根据关联目标 ID 获取所有任务
     
     Args:
         goal_id: 目标 ID（如 GOAL-001）
-        agent_id: 调用者 agent ID
     
     Returns:
         list: 任务列表
     """
-    if not check_access(agent_id):
-        return []
-    
-    tasks = get_all_tasks(agent_id)
+    tasks = get_all_tasks()
     goal_tasks = []
     
     for task in tasks:
@@ -2209,18 +2068,17 @@ def get_tasks_by_goal(goal_id: str, agent_id: str = "") -> list:
     return goal_tasks
 
 
-def get_goal_progress(goal_id: str, agent_id: str = "") -> dict:
+def get_goal_progress(goal_id: str) -> dict:
     """
     计算目标的整体进度
     
     Args:
         goal_id: 目标 ID
-        agent_id: 调用者 agent ID
     
     Returns:
         dict: 目标进度统计
     """
-    tasks = get_tasks_by_goal(goal_id, agent_id)
+    tasks = get_tasks_by_goal(goal_id)
     
     if not tasks:
         return {

@@ -4,9 +4,8 @@
 
 **技能名称**: `wecom-task-manager`  
 **技能类型**: 任务管理  
-**适用对象**: 所有配置在 allowedAgents 列表中的 agents  
+**适用对象**: 所有 agents（通过 OpenClaw 系统配置层管理权限）  
 **数据源**: 企业微信智能表格  
-**访问控制**: ✅ 启用（白名单模式）  
 **全局技能**: ✅ 是
 
 ---
@@ -408,10 +407,6 @@ else:
 **配置模块**：
 ```json
 {
-  "accessControl": {
-    "enabled": true,
-    "allowedAgents": ["da-yan", "techlead", "opsdirector", "investment_coordinator", "general_coordinator"]
-  },
   "concurrency": {
     "maxConcurrentTasks": 3
   },
@@ -435,42 +430,34 @@ else:
 
 ---
 
-## ⚠️ 注意事项
+## 🔐 权限管理
 
-### 1. 访问控制 ⭐ 全局技能
+**访问控制已迁移到 OpenClaw 系统配置层**，通过 `openclaw.json` 中的 `skills.entries` 配置管理技能访问权限。
 
-**允许的 agents**（白名单）：
-- `da-yan` - 主 agent
-- `techlead` - 技术团队老大
-- `opsdirector` - 运维团队老大
-- `investment_coordinator` - 投资团队老大
-- `general_coordinator` - 通用团队老大
-
-**调用方式**：
-```python
-# 方式 1：直接调用（白名单内的 agents）
-from task_manager import create_task, start_task
-create_task("TASK-001", "任务名称", "开发", agent_id="techlead")
-
-# 方式 2：通过环境变量
-export AGENT_ID="techlead"
-python3 task_manager.py create TASK-001 "任务名称" 开发
-
-# 方式 3：通过主 agent 代理（非白名单 agents）
-sessions_send(
-    agent_id="da-yan",
-    message="请创建任务：TASK-001"
-)
+**配置示例** (`~/.openclaw/openclaw.json`):
+```json
+{
+  "skills": {
+    "entries": {
+      "wecom-task-manager": {
+        "enabled": true,
+        "allowedAgents": ["da-yan", "techlead", "opsdirector"]
+      }
+    }
+  }
+}
 ```
 
 **权限说明**：
-- ✅ 白名单内的 agents：可以直接调用所有 API
-- ❌ 非白名单 agents：需要通过 da-yan 代理调用
-- 🔒 访问控制开关：`ACCESS_CONTROL_ENABLED = True`
+- ✅ 系统配置层统一管理所有技能的访问控制
+- ✅ 技能代码不再包含访问控制逻辑
+- ✅ 修改权限只需更新 `openclaw.json`，无需修改技能代码
 
 ---
 
-### 2. 并发控制
+## ⚠️ 注意事项
+
+### 1. 并发控制
 - **最大并发任务数**: 3 个（可配置，见 `config.json`）
 - 超出限制时，`start_task()` 会返回 `False`
 - 使用 `concurrency` 命令查看当前并发状态
