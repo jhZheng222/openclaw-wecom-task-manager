@@ -98,9 +98,13 @@ DOCID = CONFIG.get("enterpriseWeChat", {}).get("docId")
 SHEET_ID = CONFIG.get("enterpriseWeChat", {}).get("sheetId")
 DOC_URL = CONFIG.get("enterpriseWeChat", {}).get("url")
 
-# 动态查找 mcporter 路径
+# 使用 mcporter 调用 wecom-doc（稳定可靠的方式）
+# mcporter 是 OpenClaw MCP 客户端，可调用所有 MCP 工具
 import shutil
 MCPORTER_PATH = os.getenv("MCPORTER_PATH", shutil.which("mcporter") or "mcporter")
+
+# mcporter 路径（用于回退）
+MCPORTER_PATH = "/usr/local/Cellar/node/25.6.0/bin/mcporter"
 
 # 配置验证
 if not DOCID or not SHEET_ID:
@@ -155,9 +159,11 @@ TASK_TYPE_KEYWORDS = {
 
 def run_wecom_mcp(command: str, args_dict: dict) -> Optional[dict]:
     """
-    使用 mcporter 调用 wecom-doc MCP 服务（绕过 mcporter 分页限制）
+    使用 wecom_mcp 工具调用企业微信 API（v1.7.0 修复）
     
-    使用场景：获取完整数据时优先使用
+    修复说明：
+    - v1.6.x 使用 mcporter call wecom-doc，存在兼容性问题
+    - v1.7.0 使用 subprocess 直接调用 wecom_mcp 命令
     
     Args:
         command: MCP 命令名 (如 smartsheet_get_records)
@@ -168,45 +174,52 @@ def run_wecom_mcp(command: str, args_dict: dict) -> Optional[dict]:
     """
     import tempfile
     
-    # 构建 mcporter 调用命令
-    # 格式：mcporter call wecom-doc.<command> [key=value ...]
-    args_parts = []
-    for key, value in args_dict.items():
-        # URL 需要特殊处理（包含特殊字符）
-        if key == "url" and isinstance(value, str):
-            args_parts.append(f'{key}="{value}"')
-        else:
-            args_parts.append(f"{key}={value}")
-    
-    args_str = " ".join(args_parts)
+    # 构建 wecom_mcp 调用命令
+    # 格式：wecom_mcp call doc <method> '<json_args>'
+    args_json = json.dumps(args_dict, ensure_ascii=False)
     
     # 使用临时文件避免 subprocess 输出缓冲区限制
-    # capture_output 有约 64KB 限制，而完整数据约 120KB
     with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmpfile:
         tmpfile_path = tmpfile.name
     
     try:
-        cmd = f'{MCPORTER_PATH} call wecom-doc.{command} {args_str} --output json > "{tmpfile_path}" 2>&1'
+        # 尝试多种方式调用 wecom_mcp
+        # 方式 1: 直接使用 wecom_mcp 命令
+        cmd = f'wecom_mcp call doc {command} \'{args_json}\' 2>/dev/null > "{tmpfile_path}"'
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         
         if result.returncode != 0:
-            # 读取错误输出
-            try:
-                with open(tmpfile_path, 'r', encoding='utf-8') as f:
-                    error_output = f.read()
-                print(f"Error running mcporter (wecom-doc): {error_output[:500]}")
-            except:
-                print(f"Error running mcporter (wecom-doc): {result.stderr}")
+            # 方式 2: 回退到 mcporter
+            cmd = f'{MCPORTER_PATH} call wecom-doc.{command} --args \'{args_json}\' --output json 2>/dev/null > "{tmpfile_path}"'
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"⚠️ wecom_mcp 和 mcporter 都失败，使用备用方案")
             return None
         
         # 从文件读取完整 JSON
         with open(tmpfile_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        return json.loads(content)
+        if not content.strip():
+            print(f"⚠️ API 返回空数据")
+            return None
+        
+        data = json.loads(content)
+        
+        # 验证数据完整性
+        if 'records' in data:
+            total = data.get('total', len(data['records']))
+            actual = len(data['records'])
+            if total > 0 and actual < total:
+                print(f"⚠️ 数据不完整：期望{total}条，实际{actual}条")
+            elif total > 0:
+                print(f"✅ 获取完整数据：{actual}条")
+        
+        return data
     
     except Exception as e:
-        print(f"Failed to parse wecom-doc response: {e}")
+        print(f"Failed to parse response: {e}")
         return None
     
     finally:
