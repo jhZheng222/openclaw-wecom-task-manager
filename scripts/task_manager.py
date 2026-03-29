@@ -16,8 +16,14 @@ from typing import Optional, Dict, Any, List
 
 # 切换到 workspace 目录（确保 mcporter 能找到 MCP 配置）
 # 支持环境变量 OPENCLAW_WORKSPACE，默认 ~/.openclaw/workspace
+# 也尝试 general_coordinator workspace（包含 mcporter 配置）
 WORKSPACE = os.getenv("OPENCLAW_WORKSPACE", str(Path.home() / ".openclaw" / "workspace"))
-if Path(WORKSPACE).exists():
+GENERAL_COORDINATOR_WS = str(Path.home() / ".openclaw" / "workspace-general_coordinator")
+
+# 优先使用 general_coordinator workspace（包含 mcporter 配置）
+if Path(GENERAL_COORDINATOR_WS).exists():
+    os.chdir(GENERAL_COORDINATOR_WS)
+elif Path(WORKSPACE).exists():
     os.chdir(WORKSPACE)
 else:
     print(f"⚠️ 工作区不存在：{WORKSPACE}，使用当前目录")
@@ -147,6 +153,70 @@ TASK_TYPE_KEYWORDS = {
 
 # ==================== 核心函数 ====================
 
+def run_wecom_mcp(command: str, args_dict: dict) -> Optional[dict]:
+    """
+    使用 mcporter 调用 wecom-doc MCP 服务（绕过 mcporter 分页限制）
+    
+    使用场景：获取完整数据时优先使用
+    
+    Args:
+        command: MCP 命令名 (如 smartsheet_get_records)
+        args_dict: 参数字典
+        
+    Returns:
+        dict: API 响应结果
+    """
+    import tempfile
+    
+    # 构建 mcporter 调用命令
+    # 格式：mcporter call wecom-doc.<command> [key=value ...]
+    args_parts = []
+    for key, value in args_dict.items():
+        # URL 需要特殊处理（包含特殊字符）
+        if key == "url" and isinstance(value, str):
+            args_parts.append(f'{key}="{value}"')
+        else:
+            args_parts.append(f"{key}={value}")
+    
+    args_str = " ".join(args_parts)
+    
+    # 使用临时文件避免 subprocess 输出缓冲区限制
+    # capture_output 有约 64KB 限制，而完整数据约 120KB
+    with tempfile.NamedTemporaryFile(mode='w+', suffix='.json', delete=False) as tmpfile:
+        tmpfile_path = tmpfile.name
+    
+    try:
+        cmd = f'{MCPORTER_PATH} call wecom-doc.{command} {args_str} --output json > "{tmpfile_path}" 2>&1'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            # 读取错误输出
+            try:
+                with open(tmpfile_path, 'r', encoding='utf-8') as f:
+                    error_output = f.read()
+                print(f"Error running mcporter (wecom-doc): {error_output[:500]}")
+            except:
+                print(f"Error running mcporter (wecom-doc): {result.stderr}")
+            return None
+        
+        # 从文件读取完整 JSON
+        with open(tmpfile_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        return json.loads(content)
+    
+    except Exception as e:
+        print(f"Failed to parse wecom-doc response: {e}")
+        return None
+    
+    finally:
+        # 清理临时文件
+        try:
+            os.unlink(tmpfile_path)
+        except:
+            pass
+
+
 def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
     """执行 mcporter 命令"""
     args_json = json.dumps(args_dict, ensure_ascii=False)
@@ -191,14 +261,30 @@ def run_mcporter(command: str, args_dict: dict) -> Optional[dict]:
 
 
 def get_all_tasks() -> List[dict]:
-    """获取所有任务"""
-    result = run_mcporter("smartsheet_get_records", {
-        "url": "https://doc.weixin.qq.com/smartsheet/s3_AU4AGgYSAFgCNIF2EpD1QTlGcye55?scode=AA0AqAfEAHQwA13m8bAU4AGgYSAFg",
-        "sheet_id": SHEET_ID
-    })
+    """获取所有任务（优先使用 wecom_mcp 避免分页限制）"""
+    # 构建查询参数
+    if DOC_URL:
+        query_args = {"url": DOC_URL, "sheet_id": SHEET_ID}
+    else:
+        query_args = {"docid": DOCID, "sheet_id": SHEET_ID}
+    
+    # 优先使用 wecom_mcp（可获取完整数据）
+    result = run_wecom_mcp("smartsheet_get_records", query_args)
+    
+    if result and result.get("errcode") == 0:
+        records = result.get("records", [])
+        # 如果数据完整，直接返回
+        if len(records) == result.get("total", len(records)):
+            return records
+    
+    # 回退到 mcporter（可能有分页限制，只返回第一页）
+    print("⚠️ wecom_mcp 失败或数据不完整，回退到 mcporter")
+    result = run_mcporter("smartsheet_get_records", query_args)
+    
     if not result or result.get("errcode") != 0:
         print(f"Failed to get tasks: {result}")
         return []
+    
     return result.get("records", [])
 
 
